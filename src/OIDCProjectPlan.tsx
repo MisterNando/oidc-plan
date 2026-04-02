@@ -337,20 +337,6 @@ const SEV_COLORS: Record<string, string> = {
   low: "bg-green-100 text-green-800 border border-green-300",
 };
 
-function GapRow({ row }: { row: (typeof GAPS)[0] }) {
-  return (
-    <tr className="border-b last:border-0">
-      <td className="py-2 pr-3 font-medium text-sm align-top">{row.req}</td>
-      <td className="py-2 pr-3 text-sm text-slate-600 align-top">{row.current}</td>
-      <td className="py-2 pr-3 text-sm align-top">{row.gap}</td>
-      <td className="py-2 align-top">
-        <span className={`text-xs font-semibold px-2 py-0.5 rounded ${SEV_COLORS[row.severity]}`}>
-          {row.severity}
-        </span>
-      </td>
-    </tr>
-  );
-}
 
 function Task({
   task,
