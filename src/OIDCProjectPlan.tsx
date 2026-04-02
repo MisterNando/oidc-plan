@@ -472,7 +472,7 @@ export default function OIDCProjectPlan() {
             >
               Shopify's identity provider requirements
             </a>
-            {" "}— 8 phases across ~8 weeks.
+            {" "}— 9 phases across ~9 weeks.
           </p>
         </div>
 
