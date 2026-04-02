@@ -224,6 +224,50 @@ const PHASES = [
   },
   {
     id: 8,
+    title: "Shopify UX Integration Strategy",
+    duration: "Week 6–7",
+    color: "bg-cyan-100 border-cyan-400",
+    headerColor: "bg-cyan-400",
+    tasks: [
+      {
+        title: "Understand the flow direction: you are the IdP, Shopify is the RP",
+        detail:
+          "The OIDC flow does NOT originate on Shopify's website from the user's perspective. Your system is the Identity Provider. When a user hits Shopify checkout without a Shopify customer session, Shopify initiates the OIDC flow by redirecting the browser to your /oauth/authorize. Your server checks if the user already has a session → if yes, it immediately issues an auth code and redirects back to Shopify with no login prompt shown. The user experiences this as a fast, invisible redirect chain (~200ms). They never see a Shopify login page.",
+        status: "todo",
+        shopifyReq: null,
+      },
+      {
+        title: "Handle the already-authenticated case in /oauth/authorize",
+        detail:
+          "This is the critical implementation detail. When Shopify redirects to your /oauth/authorize, the endpoint must read your existing session cookie (set by platform-login). If a valid session exists: skip login UI entirely, generate auth code, redirect back to Shopify immediately. If no session: redirect to your login page, then back to /oauth/authorize after login completes. This is what makes the SSO seamless — users who are already logged into your site never see a login screen.",
+        status: "todo",
+        shopifyReq: null,
+      },
+      {
+        title: "Deep-link to bypass Shopify's interstitial screen",
+        detail:
+          "By default, Shopify may show a brief 'Sign in' interstitial page before redirecting to your IdP. To skip this entirely, link users directly to Shopify's OIDC authorization initiation URL (provided by Shopify during IdP setup) rather than to the generic checkout URL. This takes the user straight from your site → your /oauth/authorize → back to Shopify checkout, with no Shopify-branded screen in between. Confirm the exact URL format with Shopify when registering your IdP.",
+        status: "todo",
+        shopifyReq: null,
+      },
+      {
+        title: "Pre-authentication with prompt=none (silent SSO)",
+        detail:
+          "For the smoothest possible checkout experience, pre-authenticate users with Shopify before they even reach checkout. When a user logs into your site (or views a product page / adds to cart), initiate the OIDC flow in the background using prompt=none — a standard OIDC parameter that instructs your IdP to return a code immediately if the user is already logged in, without showing any UI. Shopify gets their customer session proactively, so by the time they hit checkout, the handoff has already happened. Confirm whether Shopify supports initiating prompt=none requests, or whether your frontend needs to trigger this directly.",
+        status: "todo",
+        shopifyReq: null,
+      },
+      {
+        title: "Define the pre-auth trigger point in the user journey",
+        detail:
+          "Decide at what point in the user journey to trigger pre-authentication. Options in order of earliness: (1) On login — immediately after user logs into your site; (2) On product page view — signals purchase intent; (3) On add-to-cart — strong purchase signal, still before checkout; (4) On checkout entry — last resort, works but may add a visible redirect. Earlier is better for UX. Recommended: trigger on add-to-cart as a balance between coverage and avoiding unnecessary OIDC calls for users who are just browsing.",
+        status: "todo",
+        shopifyReq: null,
+      },
+    ],
+  },
+  {
+    id: 9,
     title: "Testing & Shopify Integration",
     duration: "Week 6–8",
     color: "bg-teal-100 border-teal-400",
@@ -460,9 +504,9 @@ export default function OIDCProjectPlan() {
           <div>
             <div className="grid grid-cols-4 gap-3 mb-6">
               {[
-                { label: "Total Phases", value: "8", color: "text-indigo-600" },
+                { label: "Total Phases", value: "9", color: "text-indigo-600" },
                 { label: "Total Tasks", value: PHASES.flatMap((p) => p.tasks).length.toString(), color: "text-blue-600" },
-                { label: "Est. Timeline", value: "~8 weeks", color: "text-emerald-600" },
+                { label: "Est. Timeline", value: "~9 weeks", color: "text-emerald-600" },
                 { label: "Critical Gaps", value: GAPS.filter((g) => g.severity === "critical").length.toString(), color: "text-red-600" },
               ].map((s) => (
                 <div key={s.label} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 text-center">
@@ -560,6 +604,41 @@ export default function OIDCProjectPlan() {
                   <div key={l.pkg} className="border border-slate-200 rounded-lg p-3">
                     <div className="font-mono font-semibold text-indigo-700">{l.pkg}</div>
                     <div className="text-slate-600 mt-1">{l.use}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+              <h2 className="font-semibold text-slate-800 mb-3">User Journey — What the User Actually Experiences</h2>
+              <div className="font-mono text-sm bg-slate-900 text-slate-100 rounded-lg p-4 leading-8">
+                <div className="text-emerald-400">1. User logs into your site normally</div>
+                <div className="text-emerald-400">2. User browses, adds to cart</div>
+                <div className="text-slate-400 ml-4 text-xs">{"// Optional: silent pre-auth fires here with prompt=none (invisible)"}</div>
+                <div className="text-emerald-400">3. User clicks "Checkout"</div>
+                <div className="text-slate-400 ml-4 text-xs">{"// You deep-link to Shopify's OIDC initiation URL (skips Shopify's login screen)"}</div>
+                <div className="text-amber-400 ml-4">→ Shopify redirects browser to your /oauth/authorize</div>
+                <div className="text-amber-400 ml-4">→ Your server sees active session → issues auth code immediately</div>
+                <div className="text-amber-400 ml-4">→ Browser redirected back to Shopify with ?code=...</div>
+                <div className="text-amber-400 ml-4">→ Shopify exchanges code at your /token (server-to-server)</div>
+                <div className="text-amber-400 ml-4">→ Shopify matches/creates customer account via email from ID token</div>
+                <div className="text-emerald-400">4. User lands on Shopify checkout — already authenticated</div>
+                <div className="text-slate-400 ml-4 text-xs">{"// Steps 3→4 take ~200ms and are invisible to the user"}</div>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+              <h2 className="font-semibold text-slate-800 mb-2">Silent SSO — prompt=none</h2>
+              <p className="text-sm text-slate-600 mb-3">For the best UX, pre-authenticate with Shopify <em>before</em> the user hits checkout. Your <code className="bg-slate-100 px-1 rounded">/oauth/authorize</code> endpoint must support the <code className="bg-slate-100 px-1 rounded">prompt=none</code> parameter per OIDC Core §3.1.2.1. If the user has a session → return code immediately. If not → return <code className="bg-slate-100 px-1 rounded">error=login_required</code> (no UI shown either way).</p>
+              <div className="grid grid-cols-4 gap-2 text-xs text-center">
+                {[
+                  { trigger: "On login", ux: "Best", note: "Maximizes coverage" },
+                  { trigger: "Product view", ux: "Great", note: "Likely purchase intent" },
+                  { trigger: "Add to cart", ux: "Good", note: "Strong intent signal" },
+                  { trigger: "Checkout entry", ux: "OK", note: "Visible redirect fallback" },
+                ].map((r) => (
+                  <div key={r.trigger} className="border border-slate-200 rounded-lg p-2">
+                    <div className="font-semibold text-slate-700">{r.trigger}</div>
+                    <div className="text-indigo-600 font-bold mt-1">{r.ux}</div>
+                    <div className="text-slate-500 mt-0.5">{r.note}</div>
                   </div>
                 ))}
               </div>
